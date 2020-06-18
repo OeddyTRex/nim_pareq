@@ -1,0 +1,1017 @@
+README file for NIMSET:  Version (nimuw) 3_5  12/27/19
+
+[Version numbers prior to 2.1 have not been kept, but this NIMSET is
+intended for Version 2.1 of NIMROD.]
+
+NIMSET is the preprocessor code for NIMROD.  Its purpose is to
+generate an initial dump file from which a NIMROD runs begin.  The
+main functions it performs are to decompose a grid into computational
+blocks, generate the seam structure that allows communication between
+blocks in NIMROD, and to initialize a perturbation in the physical
+fields.  For cases with a circular cross section or a simple
+rectangular grid, NIMSET generates the grid before decomposing.  It
+also creates the equilibrium quantities for simple analytic profiles.
+For cases using a previously generated equilibrium, NIMSET reads the
+data file written by the FLUXGRID code.  Output from an equilibrium
+code must be processed by FLUXGRID first.  Here FLUXGRID generates a
+polar-like grid within the separatrix, then writes the grid and
+equilibrium surface quantities to be read by NIMSET.
+
+The available NIMSET options are documented in the input.f file.  Pay
+particular attention to the grid_input and physics_input namelists.
+Options related to the grid, equilibrium quantities (including
+diffusivity shape function), and initial perturbation can not be reset
+in NIMROD (both codes use the same input.f file).  Numerical
+parameters, linear solver parameters, and output parameters only
+affect NIMROD.  A limited set of physics parameters (such as
+diffusivity magnitudes, ohms, and advect) may be changed in NIMROD
+runs.
+
+  AHG, TAG, and CRS 1/20/98
+
+Code Modifications Starting from 2.1:
+
+2.1:
+
+  A new input variable, reset_file, has been added to the physics
+namelist.  If it is not equal to the default value of 'none', NIMSET
+initializes all _eq quantities and perturbations in a normal fashion,
+then reads reset_file (the name of a NIMROD dump file with the same
+grid as the new run).  As many of the perturbed Fourier components
+from reset_file as possible are then copied into the arrays that will
+be written to the new dump file.  If the new run has more Fourier
+components, only the first n of them are over-written, where n is the
+number of component in reset_file; the rest have the normal
+initialization.  If the new run has the same or fewer components, all
+are over-written.  [Caution: NIMSET does not check that the wavenumber
+arrays between the two cases are the same.  If there are multiple
+components, it assumes that both wavenumber arrays start at the same
+value and have the same increment.]  In all cases, the _eq quantities
+are never over-written; they are always generated in the normal
+fashion.
+  This modification serves at least two purposes.  1) It allows one to
+change the number of Fourier components in a nonlinear run, and 2) it
+allows one to modifiy the _eq quantities in a series of runs.
+  CRS, 1/20/98
+  
+  While degenerate rblocks seem to be the best implementation for the
+core boundary condition, the variable "pieflag" in conjunction with
+mxpie allows for the creation of triangular finite elements (tblocks)
+in the core region.  If pieflag is set to tblock0, nimset generates a
+pie of triangles, a dump file, and a file called pie.poly.  The file
+pie.poly can be read by the triangle code
+(http://www.cs.cmu.edu/~quake/triangle.html) to generate a finer set
+of triangles in this core region.  I recommend using the commmand
+"triangle -pYYea.0000001 pie" to insure no points are added to the
+boundary.  Pie.poly also contains rudimentary seam information.  Once
+the triangulation code has been run, rerun fluxgrid to generate a
+pie.dat file which contains the initialization of the equilibrium
+magnetic fields and the pressure.  Then rerun nimset with pieflag set
+to 'tblock1' to read in all this refined triangulation.  Pieflag
+='tblock1' only works with gridshape='flux'.
+
+  When gridshape='flux', the options rimflag and nbl_rim control the
+generation of triangular elements (tblocks) in the region between the
+last closed flux surface and the wall.dat file.  The wall.dat file
+gets created by fluxgrid and is simply an ASCII file with the first
+entry the number of wall points and then in R,Z pairs the points that
+make up the wall.  This wall will be refined to correspond to twice
+the minimum distance between points on the inner boundary. Initially,
+nimset should be set with rimflag='none' and nbl_rim equal to the
+number of tblocks in the rim region, which must be greater than or
+equal to two.  Nimset then proceeds to divide up the rim region into
+nbl_rim tblocks, and writes a set of rim???.poly files which contain
+the boundary of each tblock and some of the seaming information.  If
+wall.dat does not exist, this step gets bypassed.  Once the
+rim???.poly files have been created, the triangle code is run on each
+of these poly files.  I recommend the following command "triangle
+-pYYeq rim???.poly", where ??? is 1, 2, ..., nbl_rim.  The options
+insure no additional points are added to the boundaries.  Next rerun
+fluxgrid, this will sense the presence of rim???.node files and create
+the rim???.dat files that contain the initialization for the
+equilibrium pressures and magnetic fields.  Finally, rerun nimset with
+rimflag='tblock' to generate the dump file with tblocks in the rim
+region.  Verify the grid by checking the grid.bin file.  
+  Note: at present the FLUXGRID coding that handles the region outside
+the separatrix is only implemented for efit-format files.
+  TAG, 1/20/98
+
+  2_1_2:
+
+  A pitch and pressure profile has been added for 'circ' gridshapes
+with linear geometry.  Specify lamprof='pitprs' and set pit_0, pit_2,
+pit_4, pres_2, and pres_4 along with beta and be0.
+  CRS and RAN 3/5/98
+
+  Alan Glasser's revised bilinear.f and bicube.f routines have been
+incorporated.
+  CRS 4/13/98
+
+  2_1_9:
+
+  The dependency list for diagnose.o has been fixed in the makefiles,
+and local_c90.f and local_t3e.f have been modified so that open_bin
+does not call nim_stop.  The latter led to inifinite loops.
+  CRS, 5/12/98
+
+  2_1_10:
+
+  A sheared slab model has been added to nimset_init for rectangular
+grid cases.  It is specified by the same parameters used for setting
+pressureless profiles in cylindrical cases.  It may be rotated about
+the x axis by setting thetab/=0.
+  CRS, 6/23/98
+
+  2_2: Changes from the v_si2 branch:
+
+  When ds_use (use for the diffusivity shape function) is set to
+'equil', the diffusivity shape function is used in finding the
+paramagnetic equilibrium.  ds_use should be reset when running nimrod.
+  CRS, 6/11/98
+
+  End of changes from the v_si2 branch.
+  
+  Also, the UCLA folks found a bug in polar_rblock_init.  The jo
+computation was using dxdr,dxdz,etc. arrays at ix=0, which is not
+always defined.  This has been fixed.
+  CRS, 7/22/98
+
+  For circular grids in toroidal geometry, one can now offset the
+center of the grid from the center of the circle.  Use the parameter
+firstx to specify the offset.
+  CRS, 8/21/98
+
+  2_2_1:
+
+  The R=0 regularity conditions are being added to nimrod.  To test
+this, one can now create a cylindrical equilibrium in nimset, with the
+cylinder running up the z-axis of the coordinate system.  Use a 'rect'
+grid shape with xmin=0 and geom='tor'; then specify an equilibrium
+with lamprof and associated parameters.
+  CRS, 10/2/98
+
+  2_2_2:
+
+  The equilibria generated for gridshape='rect' cases have been
+enhanced to provide more features available in other cases.  The
+diffusivity shaping can be applied across the horizontal direction
+(toroidal rect cases have diffusivity going to dvac only at the large
+R wall, while linear rect cases have it going to dvac on left and
+right sides).  In addition, an equilibrium pinch flow may be
+specified.
+  CRS, 10/27/98
+
+  2_2_4 (no 2_2_3 changes):
+
+  The R=0 branch is being merged into the main line.  There are some
+minor changes for the nimset directory: new input and modified flux
+diagnostics.
+  CRS, 12/11/98
+
+  2_2_6 (no 2_2_5 changes):
+
+  The integration routine for analytic equilibria in polar_init.f has
+been modified to sub-step until a tolerance is reached.  Previously,
+large lamda paramagetic equilibria could have gross errors unless the
+grid size were small.
+  A vacuum region may now be specified for circular gridshapes by
+setting xvac to the radius of the plasma/vacuum interface.  This
+places the large-diffusivity region from xvac to xmax, and it rescales
+the analytic equlibrium (except pitprs profiles) to xvac instead of
+xmax.
+  CRS, 1/26/99
+
+  The diagnose.f file in the new nimplot is no longer linked to the
+nimset diagnose.f.  The flux surface computations (used only by
+nimplot) have been removed from the nimset diagnose.f.
+  The arrays for saving bicubic data at quadrature points are now
+deallocated in bicube_dealloc.
+  CRS, 2/15/99
+
+
+  2_3_2
+
+  The seam0%excorner array is no longer read during resets.  It may be
+inconsistent with the newly created seam0.
+  CRS, 7/15/99
+
+
+  2_3_3
+
+  A new circ gridshape equilibrium option has been added--qspec.  This
+allows a user to specify a q profile and a beta value.  See input.f
+for more details.  A circ gridshape, grid packing option has also been
+added.  Packing is performed at a sequence of specified q-values;
+again, see input.f.
+  SEK, 8/11/99
+
+  The routines in poly.f have been modified to improve operation in
+cases without wall.dat files.
+  TAG, 8/11/99
+
+  An option to move the equilibrium fields to the n=0 part of the
+solution vector has been added for dump files for nonlinear runs.  It
+may be used with the reset_file option.  The input controlling this is
+transfer_eq in the numerical namelist.
+  CRS, 8/25/99
+
+  Implementation of the ability to read a dump file that is on a
+different grid mesh and with different toroidal harmonics for either
+rblocks or tblocks by specification of a dump file other than none in
+"reset_dump".  This replaces regrid.  The grid is initialized in the
+normal method whether through fluxgrid.dat or internally.  Once this
+grid is set up the old dump file is read and used to interpolate
+spatial positions and perturbed fields onto this new grid.  A new
+global structure independent of rblock/tblock notation is developed
+based on individual cells and connections between the faces of cells
+that provides a semi-efficient method of mapping disparate positions
+onto the poloidal grid.  Failed points are output in failure.bin.
+  TAG 8/26/99
+
+  The init types 'compr alf', 'shear alf', and 'linear b' may now be
+augmented with 'mult' to initialize multiple perturbations (with
+different m) for each n.
+  CRS, 9/3/99
+
+
+  2_3_4
+
+  The dump_reset search algorithm has been improved to do a better job
+of finding data at new vertices.
+  Routines for the modified Bessel functions have been added to the
+bessel.f file.
+  TAG, 5/23/00
+
+  The lambda-profile equilibria for circular geometries
+(gridshape='circ' and geom='lin' or gridshape='rect' and geom='tor')
+with an annular domain may now have current on the central conductor
+by specifying thetab.  This gives the angle of the magnetic field wrt
+the axial direction in radians/pi at r=xmin.
+  CRS, 5/23/00
+
+
+  quadratic branch
+
+  Modifications have been made to allow flexibility in the degree of
+polynomials used to represent dependent variables on the finite
+element mesh.  The elements fall into the Lagrange class, where only
+function values (not derivatives) are continuous at element
+interfaces.  So far, this has only been applied to the structured
+blocks of quadrilaterals, but a similar change for blocks of triangles
+is planned.
+  At the same time, arrays for dependent variables are being changed
+into complex arrays, with separate vector-component and
+Fourier-component indices.
+  Specific modifications include:
+
+1.  The lagr_quad_mod module (in file lagrange_quad.f) is added and
+takes the place of bilinear.  The generalized Lagrange data structures
+and basis functions are defined in this module.  Evaluation routines,
+that are comparable to the old bilinear evaluation routines, are
+located here, too.  Presently, there are definitions for bilinear and
+biquadratic elements, but definitions for higher orders may be added
+in a straightforward fashion.
+  The generalized logical-space independent functions, xs and ys, are
+not used in this new system.  The ix and iy structure elements are
+also gone; this information is just passed into evaluation routines.
+The old bases for the non-conforming option have also been removed.
+
+2.  The tri_linear module has been modified to have separate routines
+and definitions for real and complex data.  The former is used for
+equilibrium quantities, which are bicubic in rblocks.  The complex
+data now has separate indices for vector components and Fourier
+components, while the real data only has vector components.
+
+3.  Overloaded assignment (=) features have been added to bicube,
+similar to what's available in lagr_quad_mod.  This facilitates
+setting data from one bicube (lagr_quad) equal to another or to a
+scalar value.
+
+4.  The dump routines and files have been modified to handle the
+expanded and complex-converted data structures.  New dump files are
+NOT compatible with older files.  Dump files for data with different
+order elements are also incompatible (see 5., however).
+
+5.  The reset_file option has been expanded again, so that one may
+change the order of polynomials, as well as grid and number of Fourier
+components.
+
+6.  The slice plots in diagnose have been modified to display data for
+elements with order > 1.  Data from the structured rblock region is
+placed in expanded global arrays for element-side and element-interior
+information.  This global data is then written as slices.  The
+draw*.in files for slices have been modified, as cell-centered
+numbering is no longer written.  Otherwise, the xdraw binary format is
+the same.
+
+7.  The numerical input now contains poly_degree, which is used to set
+the degree of polynomials in the generalized lagrange elements.  Valid
+options are presently 1 and 2.
+
+8.  Physics_init.f has been modified for the new data structures.  The
+routines phys_init and polar_phys_init now fill all bases coefficients
+with appropriate data, but eig_phys_init, tear_phys_init, mhdr_init,
+mhdc_init fill only bilinear information.
+
+  CRS, 9/14/99
+
+  More changes for the quadratic branch:
+
+9.  The bicube storage at Gaussian quadrature points has been changed
+to hold gradients wrt physical coordinates instead of logical
+coordinates.  This will avoid applying the chain rule every time
+gradients are needed.
+
+10.  Values and gradients of bases at the quadrature points now have
+storage in rblock_type_mod.  This is also for efficiency, like #9.
+
+11.  The seam_* arrays in edge_type_mod have been changed for complex
+and real data.  Also, there is separate storage for communicating
+off-diagonal matrix elements along segments, since polynomial degrees
+> 1 need normal communication there, too.
+
+12.  The convenience pointers in fields have been broken into real and
+complex vector types.
+
+13.  The lagr_quad_type now has arrays dimensioned poly_degree**2
+holding the starting indices for the two logical coordinates for the
+different basis functions.  For example, the horizontal side-centered
+bases have the y (vertical) coordinate starting from 0, like the grid
+vertex-centered (bilinear) bases, but the x (horizontal) coordinate
+starts from 1.  This information is saved in the ix0 and iy0 arrays.
+The centerings of the standard Lagrange bases in the unit square are
+in the dx and dy arrays to assist set-up and plotting.
+  The numbering of bases within each element, which runs from 1 to
+(poly_degree+1)**2--some of the same types such as grid
+vertex-centered appear more than onece in each element, has been
+changed.  This helps code the summations in the rblock integration
+routines.  The ordering is now grid vertices (left->right bottom,
+left-right top), horizontal sides (bottom->top, for each basis type),
+vertical sides (left->right, for each basis type), interiors (for each
+basis type going left->right, bottom-top).
+  Routines for assigning values to different basis coefficients have
+been added for initialization.  These act as if the standard Lagrange
+bases are used, so the convert routine must be called after assigning
+all coefficients.
+
+14.  Assigment routines and an overloaded assignment (=) have been
+added to tri_linear to match lagr_quad_mod.
+  Arrays for saving basis function values and gradients now have the
+same form as in quadrilateral cells for compatibility in integrand
+routines.
+
+15.  The vector_type_mod has been expanded for side- and
+interior-centered data.  Allocation, deallocation, and assignment
+routines have been added for convenience, along with an overloaded
+assignment (=).
+
+  CRS, 9/23/99
+
+16.  The vector-component index is now the first of the arrays indices
+for bicubes, lagrange quadrilaterals, tri_linears, and vector type
+arrays.  This has been done for optimizing nimrod and is not germane
+to the change in basis elements.
+
+  CRS, 9/24/99
+
+17.  The vector_type_mod has been expanded with 2D complex types used
+in the linear solver and functions for addition with an overloaded
+'+'.  Also, an averaging factor has been added to the seam segment
+definition.
+
+  CRS, 10/5/99
+
+18.  The diagnose module has been modified to write REAL(4) binary
+data on all machines.
+
+19.  Real 2D lagrange quad structures and manipulation routines have
+been added to lagr_quad_mod.
+
+20.  The vector_type_mod module has been significantly expanded with
+routines for mathematical operations on the vector structures.  There
+are also new routines for transferring data from one vector type to
+another, which are used in the management routines.
+
+  CRS 10/26/99
+
+21.  With the modifications to use standard Lagrange elements, the
+lagr_quad_mod module has been revised to change the polynomials.  The
+convert routines, which converted point-wise data to the nonstandard
+coefficients, have been removed.  Assignment functions in the
+vector_type_mod module have also been updated.
+
+  CRS 12/9/99
+
+22.  The sq array used to read fluxgrid surface quantity data has been
+reordered back to having the quantity index last to correspond to
+spline_type structures, which retain their original ordering.
+
+  CRS, 12/10/99
+
+23.  Definitions for Lagrange bicubic elements have been added to the
+lagr_quad_mod module.
+
+  CRS, 4/10/00
+
+24.  Definitions for Lag quadratic elements have been changed again.
+They now use a general method for generating the 1D polynomials, so
+the choice of poly_degree is unrestricted.
+
+  CRS, 5/24/00
+
+25.  Array index order has been changed so that the basis index for
+element side and interior-centered arrays is the second index,
+immediately following the vector component index.
+
+  CRS, 6/9/00
+
+26.  Dump files now contain 8 byte real data only--integers are
+converted.  This is intended to aid portability to Linux machines.
+
+27.  The *all_eval routines in lagr_quad_mod have been changed for
+optimization.  As part of this, the lagr_quad_bases routine now
+requires an argument indicating whether or not gradients of the basis
+functions are required.
+
+  CRS, 6/15/00
+
+
+  3_0
+
+The quadratic branch is being merged into the main trunk.
+
+  CRS, 6/27/00
+
+  The definition of mx for circular grids has been changed, so that it
+is the number of radial cells from the magnetic axis to the wall.
+This applies to all cases--degenerate rblocks at the axis or a pie of
+triangles at the axis.  [Fluxgrid mpsi has also been changed wrt
+what's specified in the namelist.]
+
+  Nimset no longer reads nimset.in.  It now uses nimrod.in.
+
+  CRS, 6/30/00
+
+  The qspec option has been added for rectangular grids with toroidal
+geometry.
+
+  CRS, 7/13/00
+
+  The 1D polynomials used to construct the Lagrange-type quadrilateral
+elements are now defined in the new file, polynomials.f, as subroutine
+lagr_1D.  This was previously part of lagr_quad_mod, but it has been
+moved for better modularity.  The new surface basis functions use it,
+and triangular elements will.
+
+  CRS, 12/04/00
+
+  The vector_type_mod module has been broken into separate modules to
+facilitate compilation with IBM's xlf compiler.  The source for the
+separate modules remain in the single file, however.
+
+  CRS, 12/14/00
+
+
+  3_0_1
+
+  Data structures and their definitions for storage at the Gaussian
+quadrature points have been added to rblock_type_mod and
+tblock_type_mod.  This new storage is used in the kernel to improve
+efficiency.  The quadrature points are numbered by a single index (the
+last dimension of the storage arrays), and the basis function arrays
+in rblock_type_mod and tri_linear have been modified for consistency.
+  Since the new quadrature point storage is generic, the old
+quadrature point storage for bicubic splines has been removed from
+bicube.
+
+  CRS, 4/10/01
+
+
+  3_0_2
+
+  Improvements to the reset feature that creates the global map and
+uses the global map for searching cells for grid locations.  The
+revision was necessary to improve the updated version of nimfl.
+
+  TAG, 6/14/01
+
+  3_0_3
+
+  Exponentiation in bessel has been modified to real exponents so 0**0
+comes out to 1.
+
+  CRS, 8/22/01
+
+  3_1
+
+  The code is being changed to use electron and ion temperatures,
+instead of pressures, as fundamental variables, now that the
+continuity equation for number density has been implemented.  The new
+data structures, tele and tion, have been added to the block type
+definitions, and nimset_init and polar_init initialize these
+structures.  The pressure structures have not been eliminate, however.
+They are retained in the dump files, too.
+
+  CRS, 11/20/01
+
+
+  uw3_1_1map branch
+
+  This branch is being used to complete the migration from cubic
+splines to Lagrange polynomials for the RZ map and for equilibrium
+fields.  The dump files no longer contain any cubic spline
+information.  The met_spl option called 'lagrrz' in the preliminary
+mapping modification has been renamed 'iso', since it represents an
+isoparametric mapping for all values of poly_degree.
+  The most significant changes for nimset are in nimset_init and
+polar_init, where the temporary global cubic splines have been
+eliminated in favor of direct evaluation of the equilibrium fields at
+the finite element nodes in a mesh.  This includes equilibrium current
+density; the use of derivatives of the fitted global spline of
+equilibrium magnetic field is gone.
+  Mesh packing for cylindrical equilibria is based on the cummulative
+distribution function described in the JCP manuscript.  Equilibria are
+computed twice--first without packing, and interior nodes are placed
+uniformly in radius across each packed or unpacked element.  This
+avoids overshoot in the mapping.
+  At this point, the updates for fluxgrid equilibria have not been
+incorporated.
+  The mhd* equilibria and initialization options, along with the
+pseudo-tearing-mode initialization, have been dropped due to lack
+of use and upgrades.
+
+  CRS, 3/13/03
+
+  The 'rect_cir' gridshape is being added to the uw3_1_1map branch.
+The primary change is the addition of subroutine rect_shaped_init to
+nimset_init.f, which serves the same functions as rect_init for the
+'rect' gridshape.  Note that only trivial equilibria are considered at
+this point.  The old input parameter, npc, is being used to determine
+the number of smoothing passes when generating the mesh.  It should be
+set to a large number.
+
+  CRS, 4/04/03
+
+  nimuw 3_1_2
+
+  The uw3_1_1map changes have been merged into the main trunk of
+nimuw.  In addition, the default predictor/corrector centerings for
+flow have been changed to 0.54, which is as close to 1/2 as possible
+for the v_cfl limit of 0.5.  The poloidal equilibrium flow profiles,
+'rigid' and 'sheared', have been added to polar_init.f for straight
+cylinders.
+
+  CRS, 5/7/03
+
+  nimuw3_2
+
+  The commonly used modules have been moved to the separate directory
+nimlib, where they are compiled and archived in a static library.  The
+affected files from nimset are:
+
+bessel.f
+bicube.f
+cell_type_mod.f
+edge_type_mod.f
+io.f
+lagrange_quad.f
+local_*.f
+local_system.c
+polynomials.f
+spline.f
+tri_linear.f
+vector_type_mod.f
+
+The compile lines in makefiles for the codes therefore have a flag to
+search the nimlib directory for module files, and the loader lines
+have a reference to the nimlib libarary.
+  While fluxgrid has not been updated to the nimrodteam version (Scott
+is working on revising code for inverse equilibria), the functionality
+of polar_fluxgrid_init has been restored.  The mapping and equilibrium
+data are once again splined on the mesh of grid vertices, but R along
+the radially outward going ray from the magnetic axis is used as one
+of the independent variables for the splines, replacing the horizontal
+logical index.  This helps avoid overshoot in packed meshes, though
+the more careful evaluations in the new version of nimset/fluxgrid may
+be better.  We may want to keep the present version for nimuw and not
+switch to nimrodteam's, since the present version allows using old
+fluxgrid packing methods by running old versions of fluxgrid.  The
+dump files are compatible with the nimrodteam version, so we can
+always build nimrodteam's fluxgrid/nimset to access the new
+capabilities.
+  [Old packing can be accessed from the cvs repository by checking-out
+fluxgrid with the tag merge_pre_3_0.  After running fluxgrid, manually
+edit fluxgrid.dat and insert a line with "0" after the second line.]
+  An additional quick development of breaking the core and SOL
+equilibrium fields into two separate splines may help for cases with a
+vacuum region.
+
+  CRS, 5/15/03
+  
+  Routines associated with the old style of reset (changing Fourier
+components only) are now removed from dump.f, so that there are no
+confusing references to bicubes for equilibrium quantities.
+
+  CRS, 6/17/03
+
+  The makefile structure has been changed to place all device-specific
+information in the make.inc files in the new make_includes directory.
+
+  CRS, 6/19/03
+
+  Contrary to the second comment above, the old reset is going back in
+with updates for the lagrange quad equilibrium and map quantities.
+Some problems with the newer, interpolating reset have been
+discovered, but the cause of the problems have not been identified.
+Until they are, the code in nimset will call the old reset.
+
+  CRS, 7/11/03
+
+
+  nimuw3_2_4
+
+  The polar_rblock_init routine now shifts the periodic boundary of a
+circular mesh off of the periodic boundary in the equilibrium fields.
+This fix came from tests of a d3d equilibrium that was transferred to
+n=0 and showed peculiar generation of poloidal flow in the nimrod run.
+The shift appears to give a complete cure, but the root cause of the
+problem is still somewhat mysterious.
+  The polar_fluxgrid_init routine has been modified so that the mx and
+my used in fluxgrid can be a multiple of the mx and my defining the
+nimrod mesh.  This is something of a patch for extending the life of
+the older fluxgrid and is not necessary for Scott Kruger's newer
+fluxgrid.  A somewhat related change is that for the nimuw version,
+the polar_circlegrid_pack utility has been modified slightly to read a
+q-profile instead of generating it internally assuming cylindrical
+geometry.  Thus, it can be applied to packing off of big-R, which is
+the independent variable for nimuw's bicubic splines of the fluxgrid
+flux-surface quantities.  The polar_circlegrid_pack packing can
+therefore be applied on top of any packing done in fluxgrid.
+
+  CRS, 9/2/04
+
+
+  nimuw3_2_7
+
+  Plots of the Suydam parameter for cylindrical equilibria are
+generated directly from the 1D equilibrium routines in polar_init.f.
+The new drawsuy.in file in the draw directory is the corresponding
+XDRAW file.
+
+  CRS, 7/15/05
+
+
+  nimuw 3_3
+
+  The Gaussian mesh packing may now be used for rectangular meshes if
+firstx is set to 0.  It just packs in the x-direction, and the
+specified qpack values are locations in x (not q-values).  In
+addition, the switch for circular and rectangular meshes is now based
+on amp alone and does not depend on qpack or wpack.
+
+  CRS, 5/11/06
+
+  A small utility program, mode_scramble, is being added to the nimset
+directory, since is mostly uses nimset files.  It is used to randomly
+mix the phase of n>1 Fourier components.  Like nimbase, it's
+interactive, reads a dump file, performs the operation, then writes
+another dump file.
+
+  CRS, 2/4/07
+
+  Physical constants may now be set based on namelist data.  The new
+routine physdat_set must be called after reading the nimrod.in file
+(and after calling broadcast_input for the physics kernel).  The
+constants, such as zeff, are changed from their default values in the
+physdat module only if the const_input namelist appears in nimrod.in.
+This is somewhat different from other input parameters.
+
+  CRS, 2/22/07
+
+  nimuw 3_3_2
+
+  The mesh packing routine in polar_init.f has been modified by Jacob
+King to generate the weighting function much more accurately than what
+we have been getting on coarse uniform meshes.
+
+  CRS, 6/14/07
+
+  nimuw 3_3_3
+
+  Negative mesh-packing amplifications are now allowed for rectangular
+meshes.
+  The input.f file has been modified to accept the team's input format
+with namelists equil_input, init_input, and particle_input.  Variables
+that are not used in the present version of nimuw are simply ignored.
+See the declaration of extra variables at the top of subroutine
+read_namelist for a list of what is ignored.
+
+  CRS, 7/31/07
+
+  A new program, stitch, is being added to the nimset directory.
+Functionally, it takes the place of nimset to generate separate
+regions via different nimrod.in input file.  The user then
+interactively stitches the different regions together to make a
+composite domain.  At present it only handles rectangular gridshpaes
+(for each region), and it does not work with periodic connections
+where seam0 is broken into separate pieces.
+
+  CRS, 8/28/07
+
+  nimuw3_3_4
+
+  The rect_cir gridshape initialization has been upgraded to allow
+nontrivial equilibria.  This has also required modification of the
+'polar_circle' equilibrium routines in polar_init in order to 
+accommodate calls from the rect_cir initialization.
+
+  CRS, 1/27/08
+
+  The qspec part of polar_circle_pp has been modified to generate
+the equilibria with K not 1 in the Holmes '83 paper.  This lets
+you change beta for a given aspect ratio.  A stepsize control
+like polar_circle_b0 has also been added.
+
+  CRS, 3/9/08
+
+  A new equilibrium flow option, 'diamagnetic,' has been added to
+nimset_init.f and polar_init.f.  It computes the ion diamagnetic
+flow based on the perpendicular part of Jeq and (1-pe_frac) to
+remove the electron-pressure-gradient contribution.
+  Simple rectangular-mesh equilibria in cylindrical geometry (xmin=0
+and geom='tor') with Bz0 in the z-direction now include the force
+due to inertia from uniform azimuthal flow, making Bz0 increase in
+radius.  Its value on axis is set by be0.  Similar modifications
+have also been made for rigid rotation in circular grids, but the
+force shows up in a more general way in polar_circle_b0.  [At present,
+it does not apply to pitprs and qspec equilibria.]
+
+  CRS, 4/29/08
+
+  Minor changes to initialize nonlinear runs without dealiasing have
+been made in nimset.f and physics_init.f.
+
+  CRS, 6/8/08
+
+  nimuw3_3_7
+
+  Circular gridshapes in toroidal geometry may now use the packing
+routine in polar_init.  Here qpack refers to the minor-radius coordinate
+instead of q.  The description in input.f has been updated to explain
+how this packing is used for different types of meshes and gridshapes.
+
+  CRS, 11/6/08
+
+  nimuw3_3_9
+
+  The option to pack circular gridshapes in toroidal geometry has been
+generalized to specifying different packing on inboard and outboard
+sides.  See input.f for details.
+
+  CRS, 8/6/09
+
+  Another option for packing has been added.  [What works best is
+case-specific.]  The logical packbigr has nimset use the qpack entries
+to specify packing locations in terms of R at the cut in the fluxgrid
+mesh for gridtype='flux' cases.
+
+  CRS, 8/20/09
+
+  There is a new init_type, "disp mode," that tells phys_init to read
+processed output from the dispersion code.  This allows us to initialize
+a variety of plane waves from analytical or numerical dispersion
+relations.  The information comes from the dispersion.out file with
+find_evec set to true in the dispersion input file.  The dispersion.out
+file is processed with the dout2nim script that writes the wavenumber,
+complex frequency, and B, V, and p components of one eigenmode into
+the setdisp.txt file.
+
+  CRS, 10/5/09
+
+  Another slab-geometry equilibrium is being added to nimset_init.
+Both the out-of-plane magnetic field and the pressure profile vary
+as hyperbolic tangents, so that a net drift can be imposed at x=0.
+Unlike other slab equilibria, it is not symmetric about the center of
+the domain.  The relevant value of lamprof is 'tanh.'
+  Also, a description of both this profile and the older 'sheet'
+profile has been added to input.f
+
+  CRS, 1/10/10
+
+  Input for the Chodura resistivity model has been added.  Also, default
+values for fom and split_divb have been changed, as prompted by NIMITH.
+The default for fom (now used as NIMITH's theta parameter) is 0.5, and
+and the default for split_divb is false.
+
+  CRS, 1/11/10
+
+  From the newred_from34 branch, the simple Gruber & Rappaz
+cylindrical equilibrium profile has been coded in nimset_init and
+polar_init.  Look for the new "grbrap" option for lamprof in the
+input.f comment lines.
+
+  CRS, 3/11/11
+
+  The "grbrap" profile has been added to the "rect_cir" gridshape
+initialization for testing.
+
+  CRS, 3/14/11
+
+  The poly_divb and disc_dbd input have been added to set parameters
+for a discontinuous scalar div(b) field for controlling errors.  This
+has been merged from the newred_from34 branch.
+
+  CRS, 10/22/11
+
+  A new option, pres_offset provides a way to add uniform pressure
+to analytical 1D profiles, and gamma_nimset resets the equilibrium
+number density so that nd_eq ~ pres_eq**(1/gamma_nimset).
+
+  CRS, 10/31/11
+
+  There is a new option for having nimrod model harmonics of a single
+base Fourier mode, which is accomplished by multiplying the keff array 
+by the integer zperiod.  For example, if zperiod is 4, nimrod uses its
+(lphi**2/3+1) components to model n=0,4,8,...  Note that zperiod
+also affects linear computations.  For toroidal geometry, this means
+that only a wedge of the torus is modeled.  For straight ("lin")
+geometry, the result is the same as reducing per_length apart from the
+domain volume.
+  The development and testing have been done by Joshua Sauppe, who
+also added the nz input to only perturb a single Fourier component
+at initialization.
+  Another modification corrects the way equilibrium fields are
+set in nimset_init, which only affects rectangular geometries.  The
+older coding's use of NINT() is a logically incorrect approach for
+high-order polynomials with non-uniform node spacing. 
+
+  CRS, 8/20/12
+
+  The previous change to nimset_init was not correct for symmetric
+slab equilibria that are generated from the symmetry plane to one
+side.  This update corrects the indexing.
+
+  CRS, 10/18/12
+
+  From the newred_from34 branch, the cylindrical-spheromak profile
+from DeLucia, Jardin, and Glasser paper, Resistive stability of the
+cylindrical spheromak, Phys. Fluids 27, 1470 (1984) is now available.
+See comments in input.f for the "jardel" lamprof option.
+
+  CRS and ECH, 7/9/13
+
+  There are new work structures, mwork1 and mwork4, that are used for
+expanding discontinuous modal fields that are part of matrix-free 3D
+solves.  The fields module also has space for old auxiliary data for
+flow-velocity and magnetic field.
+
+  CRS, 8/19/13
+
+  The grbrap and jardel equilibrium options have been merged from
+the newred_from34 branch.  There are also new fields and basis
+arrays in rblock_type_mod for using discontinuous fields.  However,
+the options to allow different polynomial degree values for each
+physical field have not been carried along.
+
+  CRS, 9/4/13
+
+  When merging the changes for discontinuous fields, the default
+value for p_computation has been changed from "at nodes" to "at quads."
+Tests have shown that "at quads" makes the new V-stabilization
+terms more effective.
+  The V-stabilization terms can be invoked by setting poly_divv_auto
+to true, but the default is false for consistency with previous
+computations.
+
+  CRS, 11/19/13
+
+  Kyle Bunkers has modified stitch to join complete annular-mesh
+regions.  The reset option during stitching has also been modified
+to work region by region, and it takes equilibrium fields from 
+the reset files instead of regenerating it.  this is useful for
+stitching results of nimeq for symmetric configurations.
+  The rect_init routine now generates the diff_shape function for
+basic current-free rectangular regions.  Also, adding fields
+from external coils has been added to the main trunk.  It uses
+the CEL elliptic integral routine from Numerical Recipes.
+  There is also a new init_type for rectangular gridshapes.  The
+"vertical" option just imposes a vertical flow field, which is
+useful for starting VDE computations.
+
+  CRS, 7/18/14
+
+  The vacuum coil option has also been added to the fluxgrid-
+based initialization in polar_init.  The coil fields are
+superposed on top of the read equilibrium data.
+  The R*Aphi computation that calls the CEL function is now in
+its own file as an external function, so that it does not have
+to be duplicated.
+
+  CRS, 11/21/14
+
+  Stitch has been fixed for performing three or more stitchings
+operations that meet at a vertex.  Previously, the seam0 pointer
+information was not updated in all of the linked list entries, so
+all connections did not appear in the final seam0.  Similarly, the
+"next" pointer was not connected in all linked list entries.
+Finally, the trimming of seam0 connections from blocks is now
+using the correct indexing for the new seam0 after all stitching.
+  The reset option in stitch has been modified to simply read
+entire dump files without going through nimset set-up first.
+This facilitates stitching previously stitched regions, where
+a single input file cannot create a starting mesh.
+  Note that these corrections have been ported from the
+vblock_from344 branch, where seam0 is a pointer that needs to be
+allocated before use.  That change has also been ported, hence
+the new allocation statements in dump and nimset_init and in
+other codes such as nimbase and nimplot.
+
+  CRS and KJB, 4/22/15
+
+  Revisions for annular regions are also in this new version.  a
+check for active region-seam0 vertices that are not in the
+composite seam0 list identifies stranded sections that are then
+spliced into the composite.
+
+  KJB and CRS, 5/1/15
+
+  nimuw3_4_9
+
+  This version has the makefile revised for the new data organization
+with common modules and objects located in the nimcore directory.  The
+following files have been moved from the nimset directory:
+
+  fields.f
+  seam_storage.f
+  *block_type_mod.f
+  aph_eval.f
+
+  CRS, 9/9/15
+
+  nimuw3_4_10
+
+  Josh Sauppe's cos current profile for slab-geometry computations
+is now available in nimset_init.
+
+  CRS, 4/29/16
+
+  The drawgrid routine now writes a file for plotting the Jacobian
+of the mapping as discontinuous fields.  The data format is either
+tecplot or vtk, depending on the new input parameter elout_format,
+which also affects element-based plots in nimplot.
+
+  CRS, 8/16/16
+
+  Stitch operations for periodic meshes (polar and rectangular) have
+been revised to take better advantage of the limited arrangement
+of regions that is possible.  It now works on these cases, regardless
+of nybl.
+
+  CRS, 12/28/16
+
+ The no-dealiase option has been changed so that only n up to nphi/2-1
+are used.  This eliminates the need for the zero_last_phi calls and
+means that the number of Fourier components is a power of 2.
+ 
+  CRS, 1/04/17
+
+  nimuw3_4_13
+
+  The simple vacuum field-error perturbations, originally developed
+for the vblock_from344 branch, have been added to physics_init.f.
+They are added to any other initial perturbation in B.
+
+  CRS, 6/06/17
+
+  A new optional variant of the reset has been installed.  If
+reset_eq_mesh is set to true, in addition to specifying a reset_file,
+then the equilibrium fields and mesh are read from the reset_file,
+and nimset does not attempt to reinitialize them.  This is useful
+for cases where the mesh is the result of stitching operations and
+does not match any of the standard nimset grid types.  The reset
+file gets read twice, so that the number of read Fourier components
+does not have to match what is in the nimrod.in file.
+
+  CRS, 6/25/17
+
+ The rectquad gridtype from the ilct_from3410 has been installed.
+It includes the upgrade so that it can create shapes with
+either one concave or one convex side, and the user no longer needs
+to use xo and yo to define the center of the arc.  It is determined
+by the geometry of the sides of the region.
+
+  CRS, 5/21/18
+
+  The aph_eval.f file in nimcore now has the brz_eval subroutine that
+computes components of B directly from the complete elliptic integrals,
+bypassing the finite-differencing that had been used in nimset.  Routines
+in nimset_init, polar_init, and eq_swap now use brz_eval.
+
+  CRS, 7/2/18 (merged from ilct_from3410 branch)
+
+  The calls to eq_swap from nimset and from stitch now use the old
+nedge input to set a value of n that will remain in nd_eq, swapping
+the rest.  The default leaves all of equilibrium density in the
+nd_eq data structure.
+
+  CRS, 12/27/19

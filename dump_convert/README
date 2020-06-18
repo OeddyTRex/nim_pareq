@@ -1,0 +1,19 @@
+README file for DUMP_CONVERT:  Version 3_4_11  9/10/16
+
+This program converts dump files for the linear-element-only code
+(nimrod2_*) into dump files for the generalized quadrilateral basis
+form (nimrod3_1_*).  It's interactive, requiring only the name of the
+old dump file and a name for the new dump file.
+
+CRS, 12/4/01
+
+  The makefile structure has been changed to place all device-specific
+information in the make.inc files in the new make_includes directory.
+
+  CRS, 6/19/03
+
+  The Makefile has been changed to link source files from their new
+location in the nimcore directory.  The dump_convert executables do
+not use the nimcore libraries, however.
+
+  CRS, 9/9/15

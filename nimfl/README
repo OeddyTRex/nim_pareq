@@ -1,0 +1,100 @@
+README file for NIMFL, 12/11/18
+
+NIMFL is a field-line tracer and poloidal power decomposer for NIMROD, 
+written by Tom Gianakon and Carl Sovinec.  It uses the standard technique of 
+integrating individual field line equations.  The formulation is general,
+except for cases with nulls in the total field and the implementation 
+works for both rblocks and tblocks.   Poloidal power is limited to
+regions of closed n=0 magnetic field which is determined by numerical
+integration of the n=0 magnetic field.
+
+The input parameters are listed in input.f and input0.f.  The input.f
+is the standard nimrod.in data file, so this file is now required to
+run nimfl on an input file. The second input file (nimfl.in) controls the
+functioning of nimfl itself.  The code can perform three tasks
+based on the input variable "task":  "poincare" sections,
+"poloidal" power decompostion, and "ntm" or analytic neoclassical tearing
+mode stability analysis.  The user has additional flexibility in
+the choice of starting positions for field line integrations, that
+are controlled by the "poincare_positions" input variable.  These
+are "read" the contents of start_positions.dat (1st entry is number of
+data and (R,Z) position on each subsequent line.); "qval" uses
+the n=0 q-profile to pick rational surfaces based on toroidal mode number nn;
+"cell" positions uses logical coordinates from the magnetic axis to the 
+boundary along one ray; and "axis" positions uses uniform spaced postions
+from the magnetic axis to the outboard closed surface (theta = 0.)
+
+
+  TAG and CRS, 3/1/99
+
+Evaluation calls and array indices have been changed for elements with
+user-chosen polynomial degree.  Note that poly_degree must be set to
+match what is used for the computation.  [Dump_read should complain if
+it isn't.]
+
+  CRS, 6/19/00
+
+The quadratic branch is merged into the main trunk.
+
+  CRS, 6/27/00
+
+Introduction of dump_reset map to allow field line integration with
+rblocks and tblocks.   Flexibility for starting positions added
+of field line integration added.  Poloidal power decompostion
+of magnetic energy added.  Dropped poly_degree from nimfl.in since
+the nimrod.in file is now read.  The dump_file is still controlled
+from nimfl.in.
+
+  TAG and CRS, 06/11/2001
+
+The periodic selection included by Tom has been changed to use the
+input read from nimrod.in, rather than doing a separate check for
+periodicity.  The frac_step variable has been returned to input to
+help users avoid problematic map inversions.  Finally, when a field
+line leaves the domain, lsode is told that B=(0,0,1) to avoid an
+integration hang.
+
+  CRS, 3/28/02
+
+The minimum step size for Poincare plotting has been lowered to avoid
+lsode errors and balks.
+
+  CRS, 5/14/02
+
+  The makefile structure has been changed to place all device-specific
+information in the make.inc files in the new make_includes directory.
+
+  CRS, 6/19/03
+
+  The field-line trace has been modified for rectangular meshes with
+periodic top-to-bottom boundaries.  The plane-crossing search is not
+perfect in these cases but seems to work well if the desired plane is
+not close the periodic boundary.
+  The tolerance for crossing the plotting plane is now an input
+parameter.
+
+  CRS, 6/14/07
+
+  nimuw3_4_9
+
+  This version has the makefile revised for the new data organization
+with common modules and objects located in the nimcore directory.
+
+  CRS, 9/9/15
+
+  Modifications to let nimfl use parallel computing are being added.
+Parallel decomposition is not sophisticated, it just divies the
+starting points evenly among the processors, regardless of how long
+each trace takes to compute.  Also, each processor writes a separate
+file.  The user then needs to perform 'cat nimfl*bin > nimfl.bin' to
+concatenate them into a single file.
+
+  CRS, 7/2/18
+
+  We now link odepack as an external library.  The build links to the
+library that is specified in the make.inc file instead of compiling
+source code within the nimrod directory.  The only change in NIMFL
+coding is that the driver routine for double precision is named dlsode
+and not lsode.
+
+  CRS, 12/11/18

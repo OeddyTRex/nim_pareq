@@ -1,0 +1,475 @@
+  program nimplot:  Version (nimuw) 3_4_12  8/16/16
+
+  NIMPLOT is an interactive routine for generating graphics from NIMROD
+restart files.  Some of the output options (XDRAW and DX binary files,
+for example) can be generated directly from NIMROD and were first
+implemented there.  The motivation for creating a separate program was
+parallel computation.  At present NIMROD does not do true parallel io,
+all io goes through a single processor.  Because this is a complicated
+procedure, the restart dump routines are the only io routines that write
+spatially dependent data when running in parallel.  This led to the need
+for a program like NIMPLOT.  Having this postprocessing capability
+gives one more graphical flexibility after completing a simulation, too.
+There also exists an input-file driven postprocessor, ANALYZE, written
+by Alan Glasser.
+  The interactive instructions are intended to be sufficient to step
+a user through the different input levels.  A user is able to select
+different plot types, dump files, Fourier modes or toroidal angles
+(nonlinear runs only) through NIMPLOT dialogue.  However, the draw*.in
+files for driving XDRAW are still needed.  NIMPLOT will help you find
+an appropriate draw*.in file when plotting XDRAW graphics directly, but
+you may still need to edit the draw*.in file to display some particular
+components of a vector.  Each draw*.in file contains 1) a plot type,
+2) binary file name(s), 3) a list of data in the binary file, and 
+4) a list of plots to be drawn.  Sometimes, plotting a desired component
+is only a matter of inserting or deleting the comment indicator ';' in
+the first column of a plot list entry.
+  Good luck, and feedback on using NIMPLOT (not XDRAW) is welcome.  Send
+me e-mail at sovinec@lanl.gov.
+
+   Carl Sovinec, 2/25/98
+
+  Bug fixes:
+
+  In the data_rep subroutine in nimplot.f, I have eliminated the
+nonadvancing read to prevent being kicked out of the loop prematurely.
+I don't know what was wrong with the old coding, and it may be a
+compiler error on the SGI IRIX64.  Nonadvancing writes throughout the
+file have also been changed to the F90 standard.
+
+   Carl Sovinec, 8/27/98
+
+
+   Flux surface quantities:
+
+  A new subroutine, fl_surface, is added to diagnose.f in the nimset
+directory and is used by nimplot.  It produces a contour plot of
+poloidal flux surfaces using equilibrium and n=0 fields (for nonlinear
+cases).  It also finds q and parallel current=mu0*J.B/B**2 again using
+equilibrium and n=0 fields.
+
+  Carl Sovinec, 10/16/98
+
+
+  Version 2_2_6 (using nimrod cvs revision number)
+
+  This revision incorporates many changes in order to make nimplot
+more useful and more flexible:
+
+1) Creating derived quantities is now possible through finite element
+computations.  Nimplot now uses many of nimrod's modules, such as
+rblock, tblock, generic_evals, computation_pointers, etc.  Computing
+vertex quantities is done by simple division of the lumped-mass, and
+boundary and regularity conditions are not applied.  The management
+routines for the computations are in nimplot_mgt.f, and the integrand
+routines are in nimplot_ints.  The following new plots (new to
+nimplot, at least) use these computations:
+
+ a) current density--this is always computed for the standard solution
+plots such as xy_slices, x&yt_slices, and contour_plots.
+
+ b) energy spectra--reproduces an energy.bin file using the same
+drawen.in as with the nimrod output; however, data is taken from a
+dump file list.
+
+ c) div(b) contours--from a dump file list.
+
+ d) local contour plots of mu0*J.B/B**2.
+
+Users may add other computations in a fashion similar to what is done
+in the physics kernel:  Add another input option to the main nimplot
+program (following single-file or file-list format), then add
+appropriate management and integrand routines.
+
+2) The separate rb_read and tb_read structures have been eliminated in
+plot_data.  Individual Fourier component indices are passed to the
+diagnose routines instead of making single-component structures.
+Thus, the diagnose.f file used in nimplot is unique.  The flux-surface
+quantities have been eliminated from the nimset file, since they are
+no longer needed there.  The dump_read routine is just the normal
+nimset version.  An additional benefit is that eliminating the *_read
+structures alleviates the trouble with the t3e f90 compiler.  Data
+deallocation routines are now part of plot_data, and deallocates are
+done in acquire_data before a new file is read.
+
+3) Vector plots of the data are a new option.  The data file is the
+same as for a contour plot, though conversion to flux-surface
+(grid-surface, really) components is not permitted.  A drawvec.in is
+in the draw directory.
+
+  CRS, 2/19/99
+
+
+  Version 2_3_2
+
+  An option to plot <E>.<J> has been added, where <> indicates
+Fourier-direction average.  The <E> is broken into mhd and Hall
+contributions, and individual toroidal components may be selected for
+the correlation.
+  Equilibrium fields may now be added to the n=0 solution for data
+plots of the n=0 component.  Previously, equilibrium fields could only
+be added to plots in configuration space.
+
+  CRS, 5/26/99
+
+  A call to tri_linear_get_areas has been added in acquire_data to
+initialize the tblock tgeom structure every time a new dump file is
+read.  This fixes problems with tblock computations.
+
+  CRS, 6/25/99
+
+  Fixed nimplot_mgt to use 'c' not 'd' for computation flags and created
+a separate data_rep message for correlations.
+
+  CRS 6/26/99
+
+
+  Version 2_3_3
+
+  The new seam ordering used for block-border vertex communication is
+being carried-over to nimplot.  The only border initialization needed
+by nimplot is now in module edge in the new edge_init routine located
+in file edge.f.  The old ptr2_init and edge_init in nimplot_init.f
+have been removed.
+
+  CRS, 8/13/99
+
+  Another xy-slice file option has been added, which writes poloidal
+flux and its root to be used as independent variables.
+
+  CRS, 8/25/99
+
+
+  Version 2_3_4
+
+  The tecplot_mod module has been added to convert binary xdraw output
+to ascii tecplot plt files after viewing with xdraw.  Coding has also
+been added to loop over the periodic coordinate to create 3D data at a
+given time for tecplot.  An option to convert vector components to
+Cartesian permits toroidal shaped plots with appropriate vectors.
+  Also, plots in configuration space have been modified to use a sum
+over Fourier components directly, like Tom's code in nimfl, intead of
+using FFTs, since data at every grid point is not needed.
+
+  CRS, 2/25/00
+
+
+  quadratic branch:
+
+1.  Diagnose has been updated for the complex version of data with
+expanded basis functions, like the diagnose module in nimset.  The
+flux-surface based computations now work with the global arrays
+generated by struct_set to handle higher-order elements automatically.
+
+2.  Contour has some preliminary changes for complex data, but it does
+not yet plot data associated with bases of poly degree > 1.
+
+3.  The routines in nimplot_init.f have been modified for the new data
+and matrix types (for the lumped mass matrix, which isn't
+appropriate--we'll need a matrix solve of the real mass matrix).
+  The convenience pointer assignments are now done with routines in
+vector_type_mod to automatically handle the different basis types.
+  A boundary_init routine, similar to what's in nimrod_init, has been
+added, since segment communication is now used in nimplot.
+
+4.  The nimplot_ints module has been modified for the new data type
+and basis function evaluations.
+
+5.  Modifications to nimplot_mgt are underway.  The routines will need
+to solve the actual mass matrix, not just divide by the lumped mass,
+with our nonstandard basis functions.
+
+6.  Plot_data has been modified for the new basis function sets and
+deallates.  The fields_at_angle, add_eq_fields, and flux_comps
+routines now treat all basis functions.
+
+  CRS, 9/23/99
+
+7.  The vector-component index is now the first of the arrays indices
+for bicubes, lagrange quadrilaterals, tri_linears, and vector type
+arrays.  This has been done for optimizing nimrod and is not germane
+to the change in basis functions.
+
+  CRS, 9/24/99
+
+8.  The contour_mod module has been updated for the generalized basis
+functions in rblocks.  New routines for writing data from passed
+structures have been added, so that that operation may be easily done
+from the nimplot management routines as well as from contour step.
+
+9.  Nimplot_init now creates and saves distributed mass matrices
+instead of lumped masses.  It also calls routines for the partial
+factorization of the mass matrices for preconditioning during
+iterative solves.
+
+10. The nimplot management routines have been updated for calling the
+iterative solver for the distributed mass matrix.  They also generate
+contour plots with the additional data needed for order>=2 elements in
+rblocks.
+
+11. A generic eval_at_angle routine has been added to plot_data for
+use by the management routines (for plots of computed quantities at an
+angle).
+
+12. A dummy parallel_io.f has been added, and pardata.f is now linked
+to the real pardata in nimrod.
+
+  CRS, 10/5/99
+
+13. Diagnose has been updated to write REAL(4), even on the T3E.
+
+14. The complex 2D vector types are now used in the matrix solves for
+the solution and rhs vectors.
+
+  CRS, 10/26/99
+
+15. With the conversion to standard Lagrange elements, lumping the
+mass matrix is again possible, and the lump_all option in the input
+file controls which mass matrix is used (lumped or distributed).
+
+  CRS, 11/22/99
+
+16. Index order of side and interior centered arrays has been changed
+so that the basis index is second.
+
+  CRS, 6/9/00
+
+
+  3_0
+
+  The quadratic branch is being merged into the main trunk at 2_3_4.
+
+  CRS, 6/28/00
+
+  The acquire_data routine has been modified so that jfromb is called
+only for the data plots that need J and only for the requested Fourier
+components.  This helps reduce the time to bring up a plot.
+  READ and WRITE statements have been changed to use nim_rd and nim_wr
+unit numbers intead of "*".  This complies with an old programming
+standard.
+
+  CRS, 6/30/00
+
+  The computation of poloidal flux for xy slice plots has been
+incorrect when the user selects flux components.  The transformation
+occurs first, then the poloidal flux function is computed assuming r,
+z components.  To correct this, the flux function computation for
+these plots now uses what is in the work1 array, since that is set to
+the cylindrical components of be for the computation of current
+density.
+
+NOTE: THERE ARE MANY OPTIONS (ADD EQ FIELDS, FLUX COMPS, TOROIDAL
+ANGLE INSTEAD OF N, ETC.) THAT MUST NOT INTERFERE FOR DATA-TYPE PLOTS
+(SLICES AND CONTOUR/VECTOR PLOTS).  THIS MAKES THE PLOT_DATA CODING
+PRETTY INFLEXIBLE, SO PLEASE USE CAUTION WHEN MODIFYING IT.
+
+  The equilibrium diffusivity shape function has been added to slice
+and contour/vector plot files and draw*.in files.
+
+  The bicube set calls in nimplot_init.f are now done only for data
+needed in specific nimplot_int routines.  Also, bicube cmat arrays are
+deallocated after calls to bicube_all_eval in diagnose and contour to
+help save memory.
+
+  CRS, 9/28/00
+
+
+  3_0_1
+
+  Changes have been made to be consistent with the new quadrature
+point storage for the physics kernel.  During initialization, the
+bicube_save routine has been removed (bicubic spline interpolates are
+computed on the fly), and integrands have been updated for the single
+quadrature point index of bases.  The qp storage is not used, as it is
+assumed that most data is used only once when running nimplot.  This
+also avoids increasing memory requirements.
+
+  CRS, 4/10/01
+
+  3_0_3
+
+  The bl_seam_dealloc routine in plot_data is being fixed to
+deallocate all parts of the seam that are allocated in nimplot and to
+deallocate seam0.
+
+  CRS, 8/22/01
+
+  3_1
+
+  Basic data plots for the separate electron and ion temperatures have
+been added without removing the pressure plots.
+
+  CRS, 11/20/01
+
+  A diagnostic for computing the heat flux vector separated into
+parallel and perpendicular contributions has been added.  At present
+the computation uses Te only, but this will be updated to include Ti
+soon.
+
+  CRS, 2/03/02
+
+  The jfromb call in plot_data has been moved to preceed the call to
+add_eq_fields, so that we do not find the curl of equilibrium magnetic
+field with a finite element solve.
+
+  CRS, 4/30/02
+
+  uw3_1_1map branch
+
+  Updates for the elimination of bicubic splines (RZ map and
+equilibrium quantities) are being added.  In most cases, it is just a
+matter of replacing bicube_eval calls with lagr_quad_eval calls.
+
+  CRS, 3/13/03
+
+  nimuw 3_1_2
+
+  Modifications from uw3_1_1map have been merged into the main trunk.
+
+  CRS, 5/8/03
+
+  nimuw3_2
+
+  Commonly used modules have been moved to the nimlib libarary.  The
+makefile have been changed to access nimlib.
+ 
+  CRS, 5/15/03
+
+  Two long-standing bugs are being fixed in plot_data:
+
+1) Scott K. caught an error with the mode number range not being set
+for all plotting options.  
+
+2) be_eq is added to work1 in add_eq_fields, so that the slice plots
+vs. poloidal flux appear correctly after the be_eq arrays are
+zeroed-out.  work1 is not used for anything else in 'data' plots, so
+this shouldn't cause other problems.
+
+  CRS, 6/17/03
+
+  The preconditioning option "gl_diaga" has been hard-wired into
+nimplot, so that nimplot does not need to link any external libraries,
+regardless of the 'solver' option in the nimrod.in file.
+  The makefile structure has been changed to place all device-specific
+information in the make.inc files in the new make_includes directory.
+
+  CRS, 6/19/03
+
+
+  nimuw3_2_1
+
+  The cg solvers need the new iter_utils module, so the nimplot
+Makefile had to be modified to add a link and to compile the fortran
+file.  The symmetric flag for the mass matrices has also been set in
+nimplot_init.f.
+
+  CRS, 9/10/03  
+
+
+  nimuw3_2_2
+
+  Plots of magnetic divergence and current density computed from the
+gradients of magnetic field within elements are now available through
+output written directly for Tecplot.  [There can be no intermediate
+xdraw step here.]  This work was done by Dan Swanson this past summer,
+and subsequently expanded to allow for multiple Fourier components.
+
+  CRS, 12/6/03
+
+
+  nimuw3_2_4
+
+  The seam deallocation in plot_data always tried to deallocate
+excorner in the seam0 structure, but it's not allocated for doubly
+periodic systems.  This has been corrected.
+  The heat-flux diagnostic has been modified to accommodate
+temperature-dependent coefficients and to add a convective heat flux
+plot.  However, it has only been written for single-temperature
+computations (separate_pe=F) so far.
+
+  CRS, 9/3/04
+
+
+  post-nimuw3_2_5 tag
+
+  There is a correction to the poloidal flux plot which makes the
+surface-normal directions consistent between horizontal grid-line
+integrations and vertical grid-line integrations.  This affected the
+computation for the option 7 plot only.
+  The e_dot_j integrand routine has been modified to include
+temperature-dependent resistivity.  However, only the variation of <T>
+is considered, even if eta_model="full".
+
+  CRS, 5/6/05
+
+  Element-based dynamo diagnostics have been added.  The output is
+intended for tecplot only.
+
+  CRS, 2/10/07
+
+  The xlog utility has been modified to be more reliable in deciding
+whether to start a new block of records.
+
+  CRS, 6/14/07
+
+  The energy_density integrand has been updated to use the computations
+for evolving number density that have been in the diagnostic integrand
+for the kernel.
+
+  CRS, 7/3/07
+
+
+  pre-nimuw3_3_7 tag
+
+  There has been a little bit of reorganization to facilitate reuse
+of code by the NIMEQ program.  The new source file plot_io.f contains
+the routines xdraw_plot, data_rep, acuire_dump_name, and
+acquire_dump_list, which used to be in nimplot.f.  Also, data
+deallocation has been moved out of plot_data.f and into data_dealloc.f
+so that NIMEQ can use the rest of plot_data and have its own
+data deallocation routines.
+
+  CRS, 10/23/08
+
+  The energy_density diagnostics have been revised again.  Though not
+exactly the same as the energy computation from the physics kernel, the
+computations in the nimplot routine now follow the same logic.
+
+  The integrand routines have been modified for the quadrature-point
+reordering that is presently in the qpreord_from_335hpyd branch.  The
+summation associated with quadrature-point integration is performed
+in each of the integrand routines, and the 'ix' index is now the quad-pt
+index, while 'iy' is the element index.
+
+  CRS, 7/6/09
+
+  The integrand routines have minor changes to accommodate the
+modifications for discontinuous fields in nimrod.
+
+  CRS, 11/19/13
+
+  A new option for computing and displaying the ion acoustic speed,
+Mach number, and normalized parallel flow have been added.  The option
+is intended for nonlinear computations, but if it is used for linear
+computations, it will display information computed from the
+equilibrium fields.
+
+  KJB and CRS, 6/23/15
+
+  nimuw3_4_9
+
+  This version has the makefile revised for the new data organization
+with common modules and objects located in the nimcore directory.
+
+  CRS, 9/9/15
+
+  The tecplot_mod file has been moved into nimlib, where a new vtk_mod
+module and an eldata_type_mod have been added.  Using the new vtk
+module, the xdraw binary conversion step can go directly to vtk format
+instead of tecplot format.  The new eldata structures also facilitate
+writing discontinuous fields (such as the element-divb, j, and dynamo
+fields) in either tecplot or vtk format.  The respective routines in
+nimplot_mgt now load the eldata structures and call the respective
+writing routine, instead of writing tecplot-only format.
+
+  CRS, 8/16/16

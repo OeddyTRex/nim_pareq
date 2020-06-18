@@ -1,0 +1,49 @@
+README file for NIMBASE:  Version 3_5_1  2/07/20
+
+The nimbase program allows a user to change the finite element basis
+functions.  The degree of polynomials may be increased or decreased,
+and functions may be changed from Lagrange polynomials (uniform node
+distribution) to Gauss-Lobatto-Legendre polynomials.  Note that new
+coefficients are based on evaluations of the original data.  In
+particular, if the new poly_degree is greater than or equal to the
+old, the mapping from logical to physical coordinates is unchanged
+except for round-off.  [The lower-order mapping is a member of the
+space of functions defined by the new basis.]  The same is true for
+all 'equilibrium' data.  This has two implications:
+
+1) converting to higher- or equal-order bases and then converting back
+reproduces the original data except for round-off.
+
+2) converting to a higher-order basis is not equivalent to generating
+the higher-order data from nimset, since the physical locations of the
+nodes are determined by the original data (with lower-order bases).
+Evolution from the converted data will lead to a higher-order solution
+(for the lower-order mapping and equilibrium data), however.
+
+There is an option to read an extra dump file (assumed to have the
+same mesh and poly_degree as the new data) for comparison with the new
+data.  Maximum discrepancies of the comparison with the new data are
+written to the nimbase.out file.
+
+***Use caution if you want to change the node distribution (uniform to
+gll or vice versa).  Your nimlib, nimrod, and nimplot will also have
+to be built with new node distribution set in nimlib (see poly_mod in
+polynomials.f); otherwise your results will be garbage.***
+
+
+  CRS, 6/9/05
+
+  nimuw3_4_9
+
+  The makefile has been updated for the new code organization.
+
+  CRS, 9/9/15
+
+  nimuw3_5_1
+
+  These changes add the nimcomb program that allows a user to read
+a nimrod dump file and add the perturbed fields from another dump
+file.  It was developed for the vblock_from344 branch in early 2019
+and is being committed into the nimuw trunk, first.
+
+  CRS, 2/07/20

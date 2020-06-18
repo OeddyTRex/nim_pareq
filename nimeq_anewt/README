@@ -1,0 +1,31 @@
+  program nimeq (anewt):  Version (nimuw) 3_5, 1/2/19
+
+** This is the approximate-Newton version of NIMEQ, which is described
+in my team meeting presentation from April 2, 2016.  Besides the
+appr.-Newt parts, themselves, the algebraic relations are structured
+for changes to the solution, with the right sides being residual
+vectors.  If it weren't for the appr.-Newton computations, this
+formulation is cleaner than the standard formulation.
+  It is being committed, because some cases converge better with this
+formulation than with the standard formulation, even when the
+approximate-Newton terms are not used.  **
+
+  CRS, 7/07/17
+
+  We now link odepack as an external library.  The build links to the
+library that is specified in the make.inc file instead of compiling
+source code within the nimrod directory.
+
+  CRS, 12/11/18
+
+  Eric Howell's implementation of the Jardin feedback scheme is being
+added to nimuw.  It has separate vertical and radial feedback based
+on pairs of sensor points.  Each uses a PID controller that adjusts
+current in a specified set of feedback coils.  This supersedes the old
+horizontal feedback coils, which are now removed.
+  These modifications have been ported to the appr-Newton version of
+NIMEQ, so that the code will compile, but the option has not been
+tested.  Further development will be needed for including this
+feedback in the appr-Newton steps.
+
+  KJB and CRS, 1/2/19

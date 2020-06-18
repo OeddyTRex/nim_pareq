@@ -1,0 +1,259 @@
+  library nimlib:  Version (nimuw) 3_5_1,  1/08/20
+
+  NIMLIB contains basis function modules and other F90 modules that
+are used by multiple codes in the NIMROD suite.  Most of the files
+have been moved out of the nimset directory.  The selection of which
+files to move considered 1) multiple use of the same object, and 2)
+physics independence.  Criterion 1) ruled-out the iterative solver
+modules, since nimrod needs solvers with the parallel mpi library,
+whereas nimplot need them with the serial mpi dummy.
+
+  CRS, 5/15/03
+
+  The lagr_1D routine in polynomials.f has been modified to allow a
+nonuniform distribution of nodes.  The new routine, poly_nodes, can
+compute either a uniform distribution or the zeros of the
+Gauss-Lobatto polynomials.  The default is the uniform distribution.
+
+  CRS, 5/21/03
+
+  The makefile structure has been changed to place all device-specific
+information in the make.inc files in the new make_includes directory.
+
+  CRS, 6/19/03
+
+  We have added the math_solve_q1_nxn to math_tran, providing LU
+factorization for nonsymmetric real systems with quantity-index-first
+ordering.  This has been added for static condensation with
+nonsymmetric real matrices; though, we don't have any yet.
+
+  CRS, 9/26/03
+
+  The timers in local_linux.f and local_ibm.f, i.e. timers calling the
+f90 intrinsic, have been modified to avoid hangs.  The DO WHILE loop
+allowed infinite loops on some machines and the possibility of
+exceeding the maximum integer represented by a 4-byte integer
+variable.
+
+  CRS (with help from Tony Hammond), 12/5/03
+
+
+  nimuw3_2_4
+
+  A couple of bug fixes found by trying different compilers: there was
+an incorrect INTEGER(r8) assignment in polynomials.f, and the _dealloc
+routines in tri_linear.f needed the data structure to be INTENT(INOUT)
+instead of (OUT).
+
+  CRS (thanks to Dan and Dalton), 9/2/04
+
+  The index for the Legendre polynomial computation in polynomials.f
+needed a shift of -1.
+
+  CRS (thanks to Nick Murphy for catching this!), 12/17/04
+
+
+  nimuw3_2_7
+
+  The node_dist variable which constrols whether the basis functions
+are Lagrange polynomials or Gauss-Lobatto-Legendre polynomials has
+been moved into a module, so that it can be tested and set during
+execution by poly_inquire and poly_set, respectively.  This
+modification has been made for nimbase and is not intended for use by
+nimrod.
+
+  CRS, 6/9/05
+
+  nimuw3_3
+
+  Additions to math_tran.f include math_grad, which finds the gradient
+of a field.  The curvature terms for toroidal geometry are included
+when taking the gradient of 3-vectors.  The math_cadd_cross_* routines
+are similar to the math_cart_cross_* routines, but for each, the
+result is added to an existing array that is passed with
+intent(inout).
+
+  3/16/06
+
+  The default node distribution is being changed from uniform to gll
+for nimuw3_3_1.  If you use the code on older dump files, it is
+important to know which distribution was used and to run it through
+nimbase if necessary.  One way to test is to make a contour plot with
+nimplot.  If the data is not uniformly distributed in each element,
+the node distribution in the dump file and the setting in
+polynomials.f are not consistent.
+
+  2/3/07
+
+  The new lobleg routine in polynomials.f computes abscissas and
+weights for the Lobatto integration formula as an alternative to
+Gaussian integration.
+
+  CRS, 2/21/07
+
+  Routines for multiplying data in complex cvector and cvector_2D
+structures by complex constants have been added.  Routines for adding
+these complex structures while multiplying by complex coefficients
+have also been added.
+
+  CRS, 6/14/07
+
+  The ptassign routines in vector_type_mod have been modified to
+nullify pointers if the target pointer is not associated.  This seems
+to help with the PG compiler.
+
+  RAB and CRS, 9/15/07
+
+  The vector_3D_type and associated routines have been merged into
+vector_type_mod.f from the slice branch.
+
+  CRS, 6/8/08
+
+  The following list of vector assignment operations have been modified
+to copy a vector-component range of one of the vectors into another
+vector-component range of the other.  This is being used for NIMITH,
+where 1-vectors and 3-vectors are loaded and unloaded into 8- and
+9-vectors for the entire system state.
+
+      vector_assign_cvec
+      cvector_assignq_cvec
+      cvector_assign_vec
+      cvector_assign_cvec2
+      cvector_2D_assign_cvec
+
+  CRS, 1/14/10
+
+  The lobleg and poly_nodes routines in polynomials.f have been
+modified to find the nodes of the Gauss-Lobatto-Legendre quadrature
+more accurately.  The search now starts by bisecting the Gaussian
+points from gauleg.  Also, the derivatives of (x**2-1)*dL_n/dx are
+found using recurrence relations for the Legendre polynomials,
+which eliminates the numerical differentiation from Newton's
+method.  To mirror gauleg, the search is now in lobleg, and
+poly_nodes calls lobleg.
+
+  CRS, 6/3/11
+
+  The polynomials.f file has been updated again to use the CYL_SPEC
+approach (from Boyd's book) to evaluating cardinal functions for
+GLL polynomials.  The Legendre-polynomial expansion coefficients
+for each cardinal function are stored, and evaluation uses
+recurrence relations to find values or derivatives of the Legendre-
+function bases.  Routines for the Legendre functions have been
+added, lagr_1D uses the new evaluation scheme, and there is
+some reorganization for better use of poly_mod.
+
+  CRS, 9/13/11
+
+  Coding for discontinuous basis functions has been added to the
+newred_from34 branch.
+  1) lagrange_quad definitions have been separated into the
+     lagr_type_mod; though, they still appear in lagrange_quad.f.
+  2) arrtmp is a new array in vector_types.  It is not affected
+     by math operations.
+  3) lagr_disc_quad.f has been added to generate and evaluate
+     2D discontinuous bases.  The node locations go to the element
+     edges (uniform or GLL), which is not standard.
+
+  CRS, 10/22/11
+
+  Additional changes are being added for having permanent discontinuous
+fields.  If vector_type allocates are called with polynomial_degree
+non-positive, only the arri arrays are allocated.  The ptassign routines
+also test the laq structure and nullify unneeded array pointers.
+
+  CRS, 10/31/11
+
+  A new module for possibly incomplete, discontinuous modal expansions
+is being added to the newred_from34 branch.  It is in the
+modal_disc_quad.f file.
+  The is also a correction for the _eval routines in lagr_disc_quad.f.
+These routines had not been zeroing the %f, %fx, %fy data before
+starting an evaluation.
+
+  CRS, 6/13/13
+
+  The expansions in modal_disc_quad have been further generalized so
+that for a given set of bases, the direction with limited range
+can have a maximum limit (in addition to a mimimum limit), where the
+maximum is smaller than the degree of the direction with a complete
+set of polynomials.
+
+  CRS, 6/21/13
+
+  There are new routines in vector_type_mod that help pack and
+unpack interior and discontinuous-basis coefficients for the
+finite element presolve and postsolve operations.  They will
+facilitate allowing discontinuous data in 3D solves, and they
+are now used in finite_element routines.
+
+  CRS, 7/23/13
+
+  A significant change in the vector-type operation is that math
+operations are now applied to the arrtmp array, in addition to the
+arr, arrv, arrh, and arri arrays.  This is needed for the math
+operations in 3D solves.  When the operations are binary among
+vector types, the routines check that both operand arrtmp arrays
+are associated before applying the operation.
+
+  CRS, 8/19/13
+
+  Changes from the newred_from34 branch (version newred34_dsta)
+are being added to a merge branch that will go into the main
+nimuw trunk.
+
+  CRS, 9/4/13
+
+  The CEL routine from Numerical Recipes is now included in the
+nimlib library.  It computes complete elliptic integrals and has
+much better convergence than direct summation of series.
+
+  KJB and CRS, 7/20/14
+
+  For increased modularity and consistency with nimdevel, the 
+mpi_serial.f and mpi_parallel.f files have been moved into the
+nimlib directory.  The make macro MPILINK still links one of them
+to mpi_link.f, which is compiled and loaded into the nimmpi library.
+
+  CRS, 9/8/15
+
+  The tecplot_mod module has been moved here from the nimplot
+directory and new vtk_mod and eldata_type_mod modules have been
+added.  The changes contribute flexibility for writing discontinuous
+fields in data files of different formats for different plotting
+packages.
+
+  CRS, 8/16/16
+
+  The ability to write vtk binary files has been added to vtk_mod,
+and this is now the default behavior.  The resulting file sizes
+are significantly smaller.  The module variable (parameter)
+vtk_format can be altered to produce ascii files, if desired.
+
+  CRS, 7/03/17
+
+  Changes made to vector_type_mod for the vblock_from344 have been
+merged back into the main trunk of nimuw.
+
+  CRS, 12/29/18
+
+  The data arrays within lagrange_quad, tri_linear, bicubic, and
+modal_disc_quad data structures are now allocatable arrays instead
+of pointer arrays to help optimization.  The arrays in vector_type
+structures remain pointers, but they now have the contiguous
+attribution.
+
+  CRS, 1/6/19
+
+  The ikind1 and ikind2 integer-kind parameters is added for minimal
+storage of small numbers, those no larger than 127 and 32767,
+respectively.  Local variables i1 and i2 are used in various routines,
+so this naming (differing from i4, for example) avoids conflict.
+
+  CRS, 1/26/19
+
+  New vector_type assignments between real vectors and complex 2D
+vectors have been added to facilitate non-standard operations for
+implicit hyper-viscosity via packed 3D complex solves.
+
+  CRS, 1/08/20

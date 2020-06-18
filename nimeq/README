@@ -1,0 +1,253 @@
+  program nimeq:  Version (nimuw) 3_5, 12/11/18
+
+  NIMEQ is a Grad-Shafranov solver that uses the NIMROD spectral
+finite-element framework.  It is run interactively, like NIMPLOT,
+and it uses geometry and the normal component of magnetic field
+along the surface of the domain from an existing dump file.  It needs
+to read the corresponding nimrod.in file, but input parameters that
+control the flux-function profiles and the numerical algorithm are
+read from the nimeq.in file.  The source file nimeq_input.f
+provides a description of each of these parameters.
+  After solving the GS equation, the user has the option to write
+a new dump file, where equilibrium fields from the original
+dump are replaced with the result of the GS solution.  Like
+NIMSET, there is also an option to transfer the solution to the
+n=0 part of the NIMROD data.  A nonlinear NIMROD computation
+started from these initial conditions is a good test of the
+quality of the equilibrium.
+
+  Eric Howell and Carl Sovinec, 10/23/08
+
+========================================================================
+
+  CHANGE LOG
+
+  The 'quad_closed' option for pressure is being added.  The feature of
+'cubic_closed' having dP/dpsi=0 at the magnetic axis leads to poor
+nonlinear convergence, possibly due to lack of a unique solution.  The
+quad option can also keep dP/dpsi=0 at the separatrix but then
+dP/dpsi/=0 at the magnetic axis.  This allows FRC and diamagnetic
+equilibria.
+  Initialization of '*_closed' profiles has been modified.  Pressure
+is now initialized, and the procedure assumes positive curvature in psi,
+i.e. J_phi is positive.
+  Finally, nimeq.in is read before each GS solve, so a user may keep
+editing the file to change the equilibrium between interactive steps
+with nimeq.
+
+  CRS, 1/18/09
+
+  The integrand routines have been modified for the quadrature-point
+reordering that is presently in the qpreord_from_335hpyd branch.  The
+summation associated with quadrature-point integration is performed
+in each of the integrand routines, and the 'ix' index is now the quad-pt
+index, while 'iy' is the element index.
+
+  CRS, 6/17/09
+
+  Memory deallocation has been improved, so that the code works
+correctly beyond the first pass of an interactive session.  The norm
+and tang pointers in the seam are now nullified for all vertices and
+segments, so that the condition statement in data_dealloc works
+correctly.  Data after a GS solve is discarded on subsequent passes
+regardless of dump file name, because it alters data.  There are also
+some fixes in nimeq_mgt so that the rhs computations work correctly.
+
+  CRS and ECH, 7/1/09
+
+  There is a new option to use F and P profiles read from the 1d.bin
+file produced by fluxgrid.  The file is read if mfile (# of points to
+use from 1d.bin) is greater than zero, and f_profile and p_profile
+should each be set to "read1d."
+
+  CRS, 8/6/09
+
+  The block_create_tang routine in nimeq_init.f has been modified
+slightly to accommodate new capability in stitch.  A 3-block concave
+corner may be formed, and the corner block will have an isolated
+exernal seam vertex.
+
+  CRS, 9/24/09
+
+  Three additions from the newred branch:
+1. The linear tolerance is initially loose and tightens as the 
+nonlinear residual decreases.
+2. Nimeq_input now has a parameter, gamma_nimeq, that makes
+equilibrium number density have profile such that it is 
+proportional to (p_eq/p_on_axis)**(1/gamma_nimeq).
+3. If eq_flow is set to "diamagnetic", the equilibrium flow
+profile will be reset to be the equilibrium ion diamagnetic flow
+after the GS equation is solved.
+
+  CRS, 5/29/11
+
+  The integrand routines have minor changes to accommodate the
+modifications for discontinuous fields in nimrod.
+
+  CRS, 11/19/13
+
+  The gssolve routine has been modified to find the top or bottom
+half of a vertically symmetric equilibrium.  The option is set by
+the new symm_region input parameter in nimeq_input.f.  The default
+("neither") skips the symmetry condition.
+
+  KJB and CRS, 7/20/14
+
+  NIMEQ now has its own solver specification, and seq_slu is the
+default.  This has required some rearranging of the Makefiles for
+nimrod and nimeq and new variable definitions in the make.inc
+files.
+
+  CRS, 1/01/15
+
+  NIMEQ is now linked to LSODE to perform field-line traces of
+the poloidal projection of Beq.  Field-line traces are used to
+distinguish open and closed field-lines for diverted equilibria.
+Also, it is now possible to re-solve diverted equilibria from
+fluxgrid.  There is new input (btop_check and blen_check) that
+selects whether and how to use the field-line traces.
+
+  CRS, 1/18/15
+
+  The field-line trace has been modified to use lambda=psi/R**2
+directly in the field-line computation.  There are also new
+options for generating psi from the dump file's Jeq before
+starting the GS iterations and for using LSODE's stiff solver.
+
+  CRS, 3/1/15
+
+  The eq_swap in the current branch swaps the equilibrium number
+density profile into n=0 if nimeq_tx is true, but leaves the
+uniform value of ndens to avoid division by zero.
+
+  CRS, 3/8/15
+
+  A new option coil_tx keeps fields from external coil in the
+equilbrium and takes them back out of the n=0 when using nimeq_tx.
+The coil field specifications are part of nimeq input and would 
+not be set with nimset.
+  The field-line tracing now completes its first set of traces with
+the stiff lsode solver to avoid crashes with the field is just a
+rough starting point.
+
+  CRS, 3/9/15
+
+  Modifications for computing free-boundary equilibria are being
+added to nimeq.  The gs_type parameter determines whether a
+computation is fixed or free.  The free computations find
+surface flux from coils specified in nimeq.in and from internal
+currents.  They do not use surface-normal flux from the original
+dump file.  The boundary flux is updated every nbcflux iterations
+of the outer GS iteration.
+  There are also new options for adjusting f1_closed and f_axis
+in quad_closed and cubic_closed f_models to achieve a value of
+plasma current specified by the new ip_equil parameter.  Another
+option allows coil feedback to position the o-point, but it is
+still being tested at this time.
+  As part of the update, the field-line trace to determine whether
+a flux value is open or closed now traces parallel and anti-parallel
+directions.
+
+  CRS, 6/28/15
+
+  NIMEQ has been modified to run in parallel.  The interactive
+input is still used; it runs through node 0 only.  The new nimeq_all
+module collects block and seam information needed to trace field-
+lines independently over the entire domain when using the btop_check
+option.  The nimeq_solver parameter should be set to one of the
+distributed-memory superlu options or a block-based preconditioner.
+  Some subprograms previously borrowed from other codes needed
+replacement.  They include nim_stop and the plot_data module,
+which is now located in the nimeq_data.f file.
+
+  CRS, 7/7/15
+
+  Yet another option has been added to the GS solves.  Current
+density is written to nimeq_iint.bin as a set of filaments after
+each free-boundary solve.  They can be read into another GS solve
+by setting the curfil_file input to something other than "none."
+For example, this can be used to generate flux in an external
+region, where P and RBphi are constant.
+  There is also another symmetrization option, which is for
+free boundary equilibria.  It symmetrizes the plasma-current
+contributions to the surface flux when free_symmj is set to true
+or when symm_region is not none.
+
+  CRS, 7/18/15
+
+  Changes dated 3/1/15 through 7/18/15 have been merged from the
+vblock_from344 branch.
+
+  CRS, 7/24/15
+
+  nimuw3_4_9
+
+  This version has the makefile revised for the new data organization
+with common modules and objects located in the nimcore directory.
+
+  CRS, 9/9/15
+
+  The free-boundary solver now computes an expansion for mu0*J_phi/R
+simultaneously with that for lambda.  The surface-flux is updated
+as part of each linear solve within the nonlinear iterations so that
+fewer nonlinear iterations are needed.  The new 2D real GMRES module
+is used to solve the linear system.
+
+  CRS, 11/5/15
+
+  A couple of updates have been ported from tests of approximate-Newton
+iteration.  There is a correction to f_adjust which had not been
+working correctly for f_model="quad_closed."  This affects convergence
+when ip_equil is nonzero.  Also, the linear f_model can now use
+the specified-Ip option.
+
+  CRS, 6/10/16
+
+  nimuw3_4_13
+
+  The dealiase option is now used when setting nmodes in nimeq.f.
+
+  CRS, 6/06/17
+
+  A couple of changes have been ported into the trunk's nimeq from
+other lines of development.  An alternative way of distinguishing open
+and closed flux solves a linear passive-advection problem at each
+nonlinear iteration.  Surface values of the scalar are carried through
+the open-flux region only. This option is invoked by setting btop_check to
+"passive adv".  It is an anisotropic PDE problem, so accuracy depends
+on spatial resolution.
+  The previous version of edge smoothing has been replaced by fitting
+Hemite cubics for P(psi_norm) and/or F(psi_norm) in the edge of the
+closed-flux region.  Their values and derivatives are consistent in the
+smoothed region, unlike the previous straightward smoothing of the
+psi-derivatives of these functions, However, edge smoothing of F and
+setting a specified I_p via ip_equil can hamper nonlinear convergence.
+The new smoothing is still controlled by psin_smthpp and psin_smthfp.
+  A new option to leave a specified value of R*B_phi in the equilibrium
+arrays (similar to ndeq_notx) when nimeq_tx=T is now available.  Set
+rbph_notx to the desired value, such as f_open.
+
+  CRS, 7/5/17
+
+  A new option linearly phases-out the field-line based topology check
+(btop_check='beq-trace') as the log of the relative error decreases.
+This helps avoid sudden positive jumps in relative error due to small
+shifts of the equilibrium that otherwise hamper convergence.  See
+the nimeq_input.f comments on log_rerr_fla[0-1] for information.
+
+  CRS, 7/9/18
+
+  Eric Howell's implementation of the Jardin feedback scheme is being
+added to nimuw.  It has separate vertical and radial feedback based
+on pairs of sensor points.  Each uses a PID controller that adjusts
+current in a specified set of feedback coils.  This supersedes the old
+horizontal feedback coils, which are now removed.
+
+  KJB and CRS, 7/10/18
+
+  We now link odepack as an external library.  The build links to the
+library that is specified in the make.inc file instead of compiling
+source code within the nimrod directory.
+
+  CRS, 12/11/18
+

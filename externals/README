@@ -1,0 +1,65 @@
+  Externals:  Version (nimuw) 3_5  12/03/18
+
+
+  Externals contains a set of libraries that deal with nimrod's links
+to mathematical software.
+
+libsslu_link.a -- contains routines to call Sequential SuperLU from
+  nimrod's fortran.
+
+libslud_link.a -- contains routines to call SuperLU_DIST from nimrod.
+
+liblapack_dummy.a -- non-functioning stub routines to satisfy 
+  calls when LAPACK is not loaded.
+
+libsslu_dummy.a -- non-functioning stub routines to satisfy calls 
+  when Sequential SuperLU is not loaded.
+
+libslud_dummy.a -- non-functioning stub routines to satisfy calls
+  when SuperLU_DIST is not loaded.
+
+  CRS, 6/19/03
+
+  Upon advice from Sherry Li, the handles for the data structures are
+being modified to allow for both 32- and 64-bit operation.  Instead of
+moving the memory location of the passed fortran variable to the
+memory location of the data structure, the address itself is passed as
+an 8-byte integer.  Thus, the declarations of the "factors" and
+"grid_handle" are being changed on the C side, while slugrid_handle
+and acc_handle are modified on the fortran side.
+
+  CRS, 2/4/06
+
+  Jacob King has updated the sequential SuperLU coupling to use
+version 3 of the library.  The c_fortran_dgssv.c and c_fortran_zgssv.c
+routines are from the new library, but Jake has modified them to
+restore the old option 2 (refactor the matrices using the same
+sparsity and memory) and to skip the index shift for C, which we've
+always done for SLU in NIMROD's fortran coding.
+
+  CRS, 7/3/09
+
+  Jacob King revised the c_fortran_slugrid.c file for NERSC's IBM
+IDataPlex system (Carver).  The change is to the handle for data
+structures.  The modification works on other systems, too, so it
+is now being committed as the standard version.
+
+  CRS, 8/20/12
+
+  The bridge routines are being updated for version 4.3 of the
+sequential SuperLU library and for version 3.1-3.3 of the 
+distributed-memory SuperLU_DIST library.  Kyle Bunkers ported
+the necessary changes that Jake King had made previously in nimdevel.
+
+  CRS, 12/31/15
+
+  Jake King has modified the bridge routines to allow nimrod
+to use version 6.0.0 of SuperLU_DIST.  New C pre-processor definitions
+and input parameters for the local-memory routines are expected.
+The config.tmpl and config.f files added here are used to 
+satisfy the pre-processing needs.  The input parameters for the local-
+memory routines are now defined in the sparsity_pattern data structure
+in iter_utils in nimcore, where defaults are also set, and they
+determine the options for these SLU_DIST routines.
+
+  CRS, 12/3/18

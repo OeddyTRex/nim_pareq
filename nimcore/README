@@ -1,0 +1,229 @@
+  nimcore libraries:  Version (nimuw) 3_5_2  3/23/20
+
+  The nimdevel code assembles object files used by multiple
+programs into libraries in its nimcore directory.  This is a
+first step in that direction for nimuw.  The new entry here is
+the nim_locate module that locates physical points working
+from the nimrod grid-block level. 
+
+  CRS, 1/18/15
+
+  The nim_locate block-containment check has been modified wrt
+element corners.  It is now more careful in identifying which
+segment leads to outside=true to better identify what block
+should be checked next and when the point is outside the
+domain.
+
+  CRS, 7/24/15
+
+  Following the move of the repository to SVN, many fields have
+been moved into nimcore for better organization and to better
+match nimdevel.  From the nimset directory, the
+
+  *block_type_mod.f
+  seam_storage.f
+  fields.f
+
+files are now here.  From nimrod,
+
+  time.f
+  computation_pointers.f
+  pardata.f
+  parallel.f
+  parallel_io.f
+  matrix_mod.f
+  matrix_type_mod.f
+  edge.f
+  regularity.f
+  *block.f
+  iter*.f  
+
+have been moved here.  When compiled, many object files are
+organized into libraries.  The new libraries are
+
+  libnimbltype.a: *block_type_mod.o
+  libnimblock.a: *block.o
+  libnimmatrix.a: matrix_type_mod.o matrix_mod.o
+  libnimiter.a: iter_utils.o iter_cg_*.o iter_cg.o iter_dir_nonsym.o
+                iter_3d_cg.o
+
+The iter_externals.o object is not included in libnimiter.a.
+  Also, to make the regularity module independent of the global module,
+the calling parameters for regular_vec, regular_ave, and 
+regular_zero_phi now include nmodes and the nindex array.
+
+  CRS, 9/9/15
+
+  A new non-symmetric solver file, iter_gmres_r2d, has been added
+to the iter library.  It solves real algebraic systems with GMRES,
+and there are driver routines for nimrod-matrix matrix-vector
+products and for matrix-free products.
+  The surface module has also been moved into nimcore.
+
+  CRS, 11/5/15
+
+  New routines for saving and unloading the seam_save and seam_csave
+data structures are being added to edge.f.  They facilitate the 
+modifications to the matrix-free operations for preserving full rank
+of the system.  The dirichlet_rhs routine has a new option for
+saving 'eliminated' degrees of freedom, which is also needed for this
+modification.
+
+  CRS, 1/04/16
+
+  The 1/04 modifications made for boundary conditions are now applied
+to regularity conditions.  There is a new routine in regularity.f
+that is specifically intended for the matrix-free product computation.
+This routine, regular_pre_feop, is applied to the operand vector prior
+to the FE computation, which is followed by regular_vec.  Then the
+scaled degrees of freedom are added back into the product.  The
+regular_op routine now accepts an option diagonal-scaling factor to
+replace the locally determined scaling, so that the scaling in the
+last step uses a unique number for both regularity and boundary terms.
+  The dirichlet_rhs routine of boundary.f is also modified so that it
+adds the eliminated values to seam_csave, instead of copying them.  The
+seam_csave arrays are now cleared before boundary and regularity steps
+with new routines in edge.f
+
+  CRS, 1/06/16
+
+  The matvec routines in matrix_mod that are named gv and gi never
+summed the operand vector correctly when the new_result flag is false.
+Apparently, the false option is not used, but the error is now
+corrected.
+  The 2D preconditioning routines in iter_cg_f90 and iter_cg_comp
+have been doing block averaging after the preconditioning operation,
+even when the operation is a global direct solve.  The averaging
+is now removed when direct_check is true to eliminate unnecessary
+seaming, since the direct solves in use today are all global.
+
+  CRS, 6/10/16
+
+  The boundary module has been modified to allow general combinations
+of 3-vectors and scalars.  The new bcflag_parse routine interprets
+the character string that is passed into dirichlet_rhs, dirichlet_op,
+and dirichlet_comp_op.  The new bcdir_set routine then creates an
+n-vector, locally at each point on the boundary, which indicates
+components, or linear combinations of them, that are set to zero in the
+resulting algebraic system.  While "all" is still a valid input string,
+others have been changed.  See the comments for the bcflag_parse
+routine.
+
+  CRS, 9/7/17
+
+  The block_create_tang routine from nimrod has been moved from
+nimrod_init into a separate file for stand-alone compiling in nimcore.
+This same routine will be used for nimrod, nimeq, etc.  The file
+also has a deallocation routine that just deallocates the memory
+that is allocated in the create routine.
+
+  CRS, 10/5/17  (merged into trunk from vblock_from344 on 6/22/18)
+
+  The segment part of seaming (for element sides) has been changed
+to accommodate more general block orientations, where block-based
+logical coordinates can change in opposite directions across
+block borders.  Side-centered bases within each element are now loaded
+and unloaded in the direction of the seam.  Since adjacent seams
+progress in opposite orders, the data order between the seam_in and
+seam_out arrays is flipped during accumulation.  Special load cases
+appear in the iterative solver modules, and the new edge_load_limits
+routine helps avoid writing the same condition statement many times.
+
+  CRS, 7/2/18  (merged from ilct_from3410 r1281)
+
+  The 3D preconditioning in iter_3d_cg is being streamlined.  The
+limited Fourier off-diagonal coupling and the polynomial approximation
+options are being removed to facilitate other development.
+
+  CRS, 11/18/18
+
+  This revision incorporates Jake King's SuperLU_DIST bridge routines
+that will work with v6 of that library.  Options for controlling
+diagonal scaling, reporting, and reordering now appear as part of the
+spp data structure that is declared in matrix_type_mod.  For nimuw,
+changing these options requires one to change the hard-coding that
+is in the set_precon_opts that is now in iter_utils.f.  Note that
+those settings are only used for the local-memory version of SluD,
+meaning our solver options 'slu_dsta' and 'slu_dstm.'  Changing
+the settings for the global-memory version ('slu_dist') still 
+requires changes to the bridge routines in the externals directory.
+
+  CRS, 12/09/18
+
+  The changes previously made to matrix_mod and iter_utils for the
+vblock_from344 branch have been merged into the nimuw trunk.  Some
+of the updates for iter_dir_nonsym have also been merged.
+  Deallocates for direct solves with the new SluD bridge routines
+have also been corrected.
+
+  CRS, 12/29/18
+
+  Data arrays in matrix_type and quadrature-point structures now have
+the allocatable attribution instead of the pointer attribution.
+Use of pointers in the iterative-solver routines has been reduced.
+
+  CRS, 1/6/19
+
+  The iterative solver routines and modules have been reorganized
+and renamed to straighten-out dependencies:
+
+1) Standard 2D preconditioners have been moved out of the 2D cg
+modules and are placed in their own iter_precon_real.f and
+iter_precon_comp.f files.  The drivers for preconditioners are now
+external subroutines, and the interface blocks are coded in
+iter_precon_intf.inc for convenience.
+
+2) The 2D cg routines are now in the iter_cg_real.f and iter_cg_comp.f
+files with modules by the same names.  The solver routines, themselves,
+are now called iter_cg_r2d_solve and iter_cg_c2d_solve for real and
+complex versions, respectively.
+
+3) Similar naming changes have been applied for the GMRES routines.  The
+2D GMRES routines are now called iter_gmr_r2d_solve and
+iter_gmr_c2d_solve.  The former used to be in the file iter_dir_nonsym.f,
+which was a misnomer.
+
+4) The matrix-free 3D routines are now in iter_krylov_c3d.f, formerly
+iter_3d_cg.f, and the CG and GMRES algorithms have been split into
+separate subroutines. They can be acccessed through the
+general iter_ky_c3d_solve routine that checks the hermitian flag in
+the matrix structure and then calls the appropriate solver.
+
+5) Data structures for factors used in 2D preconditioning have been
+moved out of matrix_type_mod and into the new factor_type_mod.
+
+  CRS, 1/26/19
+
+  The second phase of the solver reorganization moves the Fourier-
+diagonal preconditioner for 3D solves out of the iter_ky_c3d_mod
+module and into an external subroutine in the new iter_precon_c3dto2d.f
+file.  This is an intermediate step before placing 3D preconditioning
+in separate driver subroutines that are passed by name.
+  The third phase has also been implemented, and the 3D solver now
+calls a user-passed subroutine name for preconditioning.  This has
+forced modification to the argument list for iter_ky_c3d_solve
+and for other routines in iter_ky_c3d_mod.
+
+  CRS, 1/27/19
+
+  For increased flexibility, the iter_precon_c3dto2d routine no longer
+takes res as an argument and instead expects ctmp to already hold a
+copy.
+  The resid_margin values in iter_krylov_c3d.f have been reduced from
+0.9 to 0.5 to increase robustness.
+
+  CRS, 7/09/19
+
+  A new option for allocating blocks to processors has been added.
+Alex Sainterme is developing a preprocessing step to use METIS to
+optimize the allocation of irregularly sized/connected blocks.  As
+part of this, he instituted a new decompflag=2 option that reads
+files that prescribe which block goes to which processor within a
+layer.
+  The only complication for nimrod is in the interface to SuperLU_DIST,
+because it previously assumed that blocks were allocated to
+processors in sequence, according to global block number.  Keeping
+compressed rows or columns together for SuperLU_DIST now relies on the
+extra spp%gblock_order array.
+
+  CRS and AS, 2/06/20
